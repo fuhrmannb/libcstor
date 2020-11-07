@@ -47,7 +47,7 @@ uzfs_server_init(void)
 void
 close_client(int sock, void *arg)
 {
-	int64_t fd = (int64_t)arg;
+	int64_t fd = (int64_t)(intptr_t)arg;
 	/*
 	 * have to close the fd and also have to make sure this
 	 * fd does not get assigned. Both should be happening atomically.
@@ -103,7 +103,7 @@ uzfs_monitor_client(int fd, uzfs_info_t *ucmd_info)
 		return (NULL);
 	mon->mon_fd = fd;
 	mon->mon_action = close_client;
-	mon->mon_arg = (void *) (uint64_t)(ucmd_info->uzfs_recvfd);
+	mon->mon_arg = (void *)(uintptr_t)(uint64_t)(ucmd_info->uzfs_recvfd);
 	mon->mon_reserved = uzfs_cmd->ioc_num;
 
 	if (pthread_create(&mon->mon_tid, NULL, uzfs_monitor_socket, mon) <
@@ -136,7 +136,7 @@ uzfs_process_ioctl(void *arg)
 	int count = 0;
 	char *pool = NULL;
 
-	cfd = (int64_t)arg;
+	cfd = (int64_t)(uintptr_t)arg;
 
 	// printf("started the ioctl processing fd(%d)\n", cfd);
 	while (1) {
@@ -181,7 +181,7 @@ uzfs_accept(void *arg)
 {
 	struct sockaddr_in client_addr;
 	unsigned int addr_len;
-	int sfd = (int64_t)arg;
+	int sfd = (int64_t)(intptr_t)arg;
 
 	while (1) {
 		addr_len = sizeof (client_addr);
@@ -193,7 +193,7 @@ uzfs_accept(void *arg)
 		}
 		/* TODO(pawan) make it event-driven */
 		VERIFY3P(zk_thread_create(NULL, 0,
-		    (thread_func_t)uzfs_process_ioctl, (void *)(int64_t)cfd,
+		    (thread_func_t)uzfs_process_ioctl, (void *)(intptr_t)(int64_t)cfd,
 		    0, NULL, TS_RUN, 0, PTHREAD_CREATE_DETACHED), !=, NULL);
 	}
 
@@ -246,7 +246,7 @@ do_sendfd(int s, int fd)
 	nbytes = sendmsg(s, &msg, 0);
 
 	if (nbytes != sizeof (c)) {
-		fprintf(stderr, "sendfd err nbytes = %ld\n", nbytes);
+		fprintf(stderr, "sendfd err nbytes = %zu\n", nbytes);
 		return (-1);
 	}
 
@@ -288,7 +288,7 @@ do_recvfd(int sock)
 	nbytes = recvmsg(sock, &msg, 0);
 	if (nbytes != sizeof (c) ||
 	    c != '*') {
-		fprintf(stderr, "recvfd err nbytes = %ld c = %c\n", nbytes, c);
+		fprintf(stderr, "recvfd err nbytes = %zd c = %c\n", nbytes, c);
 		return (-1);
 	}
 
@@ -362,7 +362,7 @@ libuzfs_ioctl_init(void)
 
 		pthread_t tid;
 		if (pthread_create(&tid, &attr, uzfs_accept,
-		    (void *)(int64_t)server_s))
+		    (void *)(intptr_t)(int64_t)server_s))
 			break;
 
 		VERIFY0(pthread_attr_destroy(&attr));

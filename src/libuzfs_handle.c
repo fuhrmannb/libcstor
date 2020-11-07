@@ -35,10 +35,10 @@ is_main_thread(void)
 
 static void inline uzfs_ioctl_done(uzfs_ioctl_t *cmd, zfs_cmd_t *zc)
 {
-	free((void *) zc->zc_nvlist_src);
-	free((void *) zc->zc_nvlist_dst);
-	free((void *) zc->zc_nvlist_conf);
-	free((void *) zc->zc_history);
+	free((void *)(uintptr_t) zc->zc_nvlist_src);
+	free((void *)(uintptr_t) zc->zc_nvlist_dst);
+	free((void *)(uintptr_t) zc->zc_nvlist_conf);
+	free((void *)(uintptr_t) zc->zc_history);
 }
 
 static int inline uzfs_ioctl_init(uzfs_ioctl_t *cmd, zfs_cmd_t *zc)
@@ -46,32 +46,32 @@ static int inline uzfs_ioctl_init(uzfs_ioctl_t *cmd, zfs_cmd_t *zc)
 	void *ptr;
 
 	zc->zc_nvlist_src = zc->zc_nvlist_dst = zc->zc_nvlist_conf =
-	    zc->zc_history = (uint64_t)NULL;
+	    zc->zc_history = (uint64_t)(uintptr_t)NULL;
 
 	if (zc->zc_nvlist_src_size) {
 		ptr = malloc(zc->zc_nvlist_src_size);
 		if (ptr == NULL)
 			goto err;
-		zc->zc_nvlist_src = (uint64_t)ptr;
+		zc->zc_nvlist_src = (uint64_t)(uintptr_t)ptr;
 	}
 	if (zc->zc_nvlist_dst_size) {
 		ptr = malloc(zc->zc_nvlist_dst_size);
 		if (ptr == NULL)
 			goto err;
-		zc->zc_nvlist_dst = (uint64_t)ptr;
+		zc->zc_nvlist_dst = (uint64_t)(uintptr_t)ptr;
 	}
 	if (zc->zc_nvlist_conf_size) {
 		ptr = malloc(zc->zc_nvlist_conf_size);
 		if (ptr == NULL)
 			goto err;
-		zc->zc_nvlist_conf = (uint64_t)ptr;
+		zc->zc_nvlist_conf = (uint64_t)(uintptr_t)ptr;
 	}
 	size_t his_size = (cmd->his_len ? cmd->his_len : zc->zc_history_len);
 	if (his_size) {
 		ptr = malloc(his_size);
 		if (ptr == NULL)
 			goto err;
-		zc->zc_history = (uint64_t)ptr;
+		zc->zc_history = (uint64_t)(uintptr_t)ptr;
 	}
 
 	return (0);
@@ -184,12 +184,12 @@ uzfs_recv_response(int fd, zfs_cmd_t *zc)
 	zc->zc_history = his;
 
 	if (zc->zc_history && zc->zc_history_len &&
-	    uzfs_read_packet(fd, (void *) zc->zc_history,
+	    uzfs_read_packet(fd, (void *)(uintptr_t) zc->zc_history,
 	    zc->zc_history_len) <= 0)
 		return (EPIPE);
 
 	if (uzc.zc_nvlist_dst_filled &&
-	    uzfs_read_packet(fd, (void *) zc->zc_nvlist_dst,
+	    uzfs_read_packet(fd, (void *)(uintptr_t) zc->zc_nvlist_dst,
 	    zc->zc_nvlist_dst_size) <= 0)
 		return (EPIPE);
 
@@ -204,11 +204,11 @@ uzfs_send_ioctl(int fd, unsigned long request, zfs_cmd_t *zc)
 	uzfs_cmd.ioc_num = request;
 
 	if (!zc->zc_history_len && zc->zc_history)
-		uzfs_cmd.his_len = strlen((char *)zc->zc_history);
+		uzfs_cmd.his_len = strlen((char *)(uintptr_t)zc->zc_history);
 
-	char *src = (char *)zc->zc_nvlist_src;
-	char *conf = (char *)zc->zc_nvlist_conf;
-	char *his = (char *)zc->zc_history;
+	char *src = (char *)(uintptr_t)zc->zc_nvlist_src;
+	char *conf = (char *)(uintptr_t)zc->zc_nvlist_conf;
+	char *his = (char *)(uintptr_t)zc->zc_history;
 
 	uzfs_cmd.packet_size = (sizeof (uzfs_ioctl_t) + sizeof (zfs_cmd_t) +
 	    zc->zc_nvlist_src_size + zc->zc_nvlist_conf_size
@@ -260,15 +260,15 @@ uzfs_recv_ioctl(int fd, zfs_cmd_t *zc, uzfs_info_t *ucmd_info)
 	if (uzfs_ioctl_init(uzfs_cmd, zc) < 0)
 		return (-1);
 
-	if (uzfs_read_packet(fd, (void *) zc->zc_nvlist_src,
+	if (uzfs_read_packet(fd, (void *)(uintptr_t) zc->zc_nvlist_src,
 	    zc->zc_nvlist_src_size) <= 0)
 		goto err;
 
-	if (uzfs_read_packet(fd, (void *) zc->zc_nvlist_conf,
+	if (uzfs_read_packet(fd, (void *)(uintptr_t) zc->zc_nvlist_conf,
 	    zc->zc_nvlist_conf_size) <= 0)
 		goto err;
 
-	if (uzfs_read_packet(fd, (void *) zc->zc_history, uzfs_cmd->his_len) <=
+	if (uzfs_read_packet(fd, (void *)(uintptr_t) zc->zc_history, uzfs_cmd->his_len) <=
 	    0)
 		goto err;
 
@@ -312,12 +312,12 @@ uzfs_send_response(int fd, zfs_cmd_t *zc, uzfs_info_t *ucmd_info)
 		goto out;
 	}
 
-	if (uzfs_write_packet(fd, (void *) zc->zc_history,
+	if (uzfs_write_packet(fd, (void *)(uintptr_t) zc->zc_history,
 	    zc->zc_history_len) <= 0) {
 		goto out;
 	}
 
-	char *buf = (char *)zc->zc_nvlist_dst;
+	char *buf = (char *)(uintptr_t)zc->zc_nvlist_dst;
 
 	if (zc->zc_nvlist_dst_filled &&
 	    uzfs_write_packet(fd, buf, zc->zc_nvlist_dst_size) <= 0) {

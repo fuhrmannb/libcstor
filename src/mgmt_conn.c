@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <time.h>
 #include <ifaddrs.h>
 #include <netdb.h>
@@ -671,9 +672,9 @@ uzfs_append_snapshot_properties(nvlist_t *nv, struct json_object *robj,
 					    "elem:%s val:%lu",
 					    nvpair_name(elem), value);
 			} else {
-				len = snprintf(NULL, 0, "%lu", value) + 1;
+				len = snprintf(NULL, 0, "%" PRIu64, value) + 1;
 				str_value = kmem_zalloc(len, KM_SLEEP);
-				snprintf(str_value, len, "%lu", value);
+				snprintf(str_value, len, "%" PRIu64, value);
 				json_object_object_add(robj, prop_name,
 				    json_object_new_string(str_value));
 				kmem_free(str_value, len);
